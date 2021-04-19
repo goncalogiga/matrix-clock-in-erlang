@@ -1,24 +1,27 @@
 -module(messenger).
 
--export([start_N_processes/1, start_process/0, send/2]).
+-export([start_N_processes/1, start_process/0, send/3]).
 
 
 
 
-send (Dst_id, Msg) ->
-	case lists:keymember(Dst_id, 2, Pids) of
-		true ->
-			Dst_id ! Msg;
+send (Dst_id, Msg, Pids) ->
+	case lists:keyfind(Dst_id, 1, Pids) of
 		false ->
-			error("Destinition not found.")
+			io:fwrite("~p~n", [Dst_id]),
+			error ("Destination not found.");
+		
+		{_, {_, Pid}} ->
+			Pid ! Msg
 	end.
+
 
 
 
 start_process () ->
 	receive
         Msg ->
-            io:format("~p~n", Msg)
+            io:format("~p~n", [Msg])
     end.
 
 
