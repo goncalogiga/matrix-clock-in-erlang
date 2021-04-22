@@ -6,8 +6,24 @@
 %   escript -c <filename>
 
 main(_) ->
-	Pids = messenger:start_N_processes(4),
-	io:fwrite("~p~n", [Pids]),
-	messenger:send(0, "cc 0", [Pids]).
-	%messenger:send(1, "cc 1", Pids),
-	%messenger:send(2, "cc 2", Pids).
+	% Exemple du TD sur les horloges matricielles
+	E = messenger:start_N_processes(3),
+	messenger:add_event(0, 0, E),
+	messenger:add_event(0, 2, E),
+	messenger:add_event(0, 2, E),
+	messenger:add_event(0, 1, E),
+	messenger:add_event(1, 1, E),
+	messenger:add_event(1, 2, E),
+	messenger:add_event(1, 0, E),
+	messenger:add_event(2, 2, E),
+	messenger:add_event(2, 0, E),
+
+	io:fwrite("~p~n", [messenger:send(0,E)]),
+	io:fwrite("~p~n", [messenger:send(0,E)]),
+	io:fwrite("~p~n", [messenger:send(0,E)]),
+	io:fwrite("~p~n", [messenger:send(0,E)]),
+	io:fwrite("~p~n", [messenger:send(1,E)]),
+	io:fwrite("~p~n", [messenger:send(1,E)]),
+	io:fwrite("~p~n", [messenger:send(1,E)]),
+	io:fwrite("~p~n", [messenger:send(2,E)]),
+	io:fwrite("~p~n", [messenger:send(2,E)]).
