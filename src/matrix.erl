@@ -135,22 +135,22 @@ add_one_to_column (Col, Matrix) ->
 display (Matrix, Cnt, N) ->
 	if
 		Cnt == N*N - 1 ->
-			io:fwrite("~p]]~n", [array:get(Cnt, Matrix)]),
+			io:format("~p]]~n", [array:get(Cnt, Matrix)]),
 			done;
 		Cnt == 0 ->
-			io:fwrite("[[~p,", [array:get(Cnt, Matrix)]),
+			io:format("[[~p,", [array:get(Cnt, Matrix)]),
 			display (Matrix, Cnt + 1, N);
 		Cnt == 1 ->
-			io:fwrite("~p,",   [array:get(Cnt, Matrix)]),
+			io:format("~p,",   [array:get(Cnt, Matrix)]),
 			display (Matrix, Cnt + 1, N);
 		Cnt rem N == N - 1 ->
-			io:fwrite("~p],~n", [array:get(Cnt, Matrix)]),
+			io:format("~p],~n", [array:get(Cnt, Matrix)]),
 			display (Matrix, Cnt + 1, N);
 		Cnt rem N == 0 ->
-			io:fwrite(" [~p,",  [array:get(Cnt, Matrix)]),
+			io:format(" [~p,",  [array:get(Cnt, Matrix)]),
 			display (Matrix, Cnt + 1, N);
 		true ->
-			io:fwrite("~p,",   [array:get(Cnt, Matrix)]),
+			io:format("~p,",   [array:get(Cnt, Matrix)]),
 			display (Matrix, Cnt + 1, N)
 	end.
 
