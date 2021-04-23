@@ -3,7 +3,7 @@
 -export([ new/1,
 		  mget/3,
 		  mset/4,
-		  map/7,
+		  map/6,
 		  map/2,
 		  map_line/3,
 		  map_column/3,
@@ -42,12 +42,18 @@ mset (I, J, Value, Matrix) ->
 
 % Goes through the matrix M, applying the function Fun
 % to each member iterated on.
-map (Fun, X, X, Min_J, Max_J, I, J, N, Matrix) ->
-	map (Fun, X, X + 1, Min_J, Max_J, I, J, N, Matrix);
 map (Fun, Min_I, Max_I, Min_J, Max_J, I, J, N, Matrix) ->
-	Test_max = I < Max_I,
+	Test_max = I =< Max_I,
 	Test_min = I >= Min_I,
-	if Test_min and Test_max ->
+
+	if I > Max_I ->
+		Matrix;
+
+	I == N ->
+		Matrix;
+
+	Test_min and Test_max ->
+
 		if J < Min_J ->
 			map (Fun, Min_I, Max_I, Min_J, Max_J, I, J + 1,
 				 N, Matrix);
@@ -58,15 +64,11 @@ map (Fun, Min_I, Max_I, Min_J, Max_J, I, J, N, Matrix) ->
 			map (Fun, Min_I, Max_I, Min_J, Max_J, I + 1, 0,
 				 N, Matrix);
 		true ->
-			io:format("~p;~p~n", [I,J]),
 			Value = mget(I, J, Matrix),
 			map (Fun, Min_I, Max_I, Min_J, Max_J, I, J + 1,
 				 N, mset(I, J, Fun(Value), Matrix))
 		end;
-	I > Max_I ->
-		Matrix;
-	I == N ->
-		Matrix;
+
 	true ->
 		map (Fun, Min_I, Max_I, Min_J, Max_J, I + 1, J, N, Matrix)
 	end.
@@ -76,12 +78,6 @@ map (Fun, Min_I, Max_I, Min_J, Max_J, I, J, N, Matrix) ->
 
 map (Fun, Min_I, Max_I, Min_J, Max_J, Matrix) ->
 	N = round(math:sqrt(array:size(Matrix))),
-	map (Fun, Min_I, Max_I, Min_J, Max_J, 0, 0, N, Matrix).
-
-
-
-
-map (Fun, Min_I, Max_I, Min_J, Max_J, N, Matrix) ->
 	map (Fun, Min_I, Max_I, Min_J, Max_J, 0, 0, N, Matrix).
 
 

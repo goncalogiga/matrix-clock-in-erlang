@@ -24,6 +24,7 @@ start_N_processes (N) ->
 	end.
 
 
+f (X) -> X + 2.
 
 
 start_N_processes (_, 0, Pids) ->
