@@ -35,16 +35,63 @@ send (Sender_Id, Destination_Id, Messenger_List) ->
 
 
 
+local_event (Id, Stamp) ->
+	matrix:add_one (Id, Id, Stamp).
+
+
+
+
+send_event (Id, Sender_Id, Stamp) ->
+	matrix:add_one (Id, Sender_Id, matrix:add_one(Id, Id, Stamp)).
+
+
+
+
+check_stamp (Id, Sender_Id, Stamp, Recieved_Stamp) ->
+	% --- Test n°1 ---
+	A = mget(Sender_Id, Id, Recieved_Stamp),
+	B = mget(Sender_Id, Id, Stamp) + 1,
+	if A =:= B ->
+		io:format("DESYNCHRONISATION (1)~n");
+		done;
+	true ->
+		Val = matrix:check_desynchronisation (Id, Sender_Id, Recieved_Stamp, Stamp),
+		if Val ->
+			ok;
+		true ->
+			io:format("DESYNCHRONISATION (2)~n")
+		end
+	end.
+
+
+
 process_fun (Id, Stamp) ->
 	receive
 		{send, Destination_Id, Destination_Pid} ->
-			io:format ("~p sent a message to ~p~n", [Id, Destination_Id]),
-			Destination_Pid ! {msg, Id, Stamp},
-			process_fun (Id, Stamp);
+			
+			% --- Sending a message --- %
+			if Id == Destination_Id ->
+				New_Stamp = local_event (Id, Stamp);
+			true ->
+				New_Stamp = send_event (Id, Destination_Id, Stamp)
+			end,
+
+			io:format ("~p sends a message to ~p; stamped:~n~s~n",
+				[Id, Destination_Id, matrix:display(New_Stamp)]),
+			Destination_Pid ! {msg, Id, New_Stamp},
+			process_fun (Id, New_Stamp);
+
 		{msg, Sender_Id, Sender_Stamp} ->
-			io:format("~p recieved message of ~p. Stamped:~n",
-				[Id, Sender_Id]),
-			matrix:display(Sender_Stamp),
+
+			% --- Receiving a message => Checking for desynchronisation ---
+			check_stamp (Id, Sender_Id, Stamp, Sender_Stamp),
+
+			New_Stamp1 = matrix:add_one (Id, Id, Stamp),
+			New_Stamp2 = matrix:add_one (Sender_Id, Id, New_Stamp1),
+			% MAX
+
+			io:format("~p received a message from ~p; stamped:~n~s~n",
+				[Sender_Id, Id, matrix:display(Sender_Stamp)]),
 			process_fun (Id, Stamp)
     end.
 

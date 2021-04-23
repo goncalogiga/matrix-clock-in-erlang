@@ -8,9 +8,12 @@
 		  map_line/3,
 		  map_column/3,
 		  zeros/1,
+		  add_one/3,
 		  add_one_to_line/2,
 		  add_one_to_column/2,
-		  display/1
+		  check_desynchronisation/4,
+		  display/1,
+		  nonformated_display/1
 		]).
 
 
@@ -120,6 +123,11 @@ add_one (X) -> X + 1.
 
 
 
+add_one (I, J, Matrix) ->
+	map (fun add_one/1, I, I, J, J, Matrix).
+
+
+
 add_one_to_line (Line, Matrix) ->
 	map_line (fun add_one/1, Line, Matrix).
 
@@ -132,26 +140,63 @@ add_one_to_column (Col, Matrix) ->
 
 
 
-display (Matrix, Cnt, N) ->
+check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM) ->
+	N = round(math:sqrt(array:size(MatrixEM))),
+	check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM, N, 0).
+
+
+
+
+check_desynchronisation (_, _, _, _, N, N) ->
+	true;
+check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM, N, Cnt) ->
+	I = round(Cnt/N),
+	J = Cnt rem N,
+	Test1 = Excluded_I == I,
+	Test2 = Excluded_J == J,
+
+	if Test1 or Test2 ->
+		check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM, N,
+			Cnt + 1);
+	true ->
+		Val1 = mget(Excluded_I, I,MatrixEM),
+		Val2 = mget(Excluded_J, J,MatrixHM),
+		if Val1 =< Val2 ->
+			check_desynchronisation (Excluded_I, Excluded_J, MatrixEM,
+				MatrixHM, N, Cnt + 1);
+		true ->
+			false
+		end
+	end.
+
+
+
+
+to_string(Pattern, Values) ->
+    lists:flatten(io_lib:format(Pattern, Values)).
+
+
+
+
+display (Matrix, Cnt, N, String) ->
 	if
 		Cnt == N*N - 1 ->
-			io:format("~p]]~n", [array:get(Cnt, Matrix)]),
-			done;
+			String ++ to_string("~p]]\n", [array:get(Cnt, Matrix)]);
 		Cnt == 0 ->
-			io:format("[[~p,", [array:get(Cnt, Matrix)]),
-			display (Matrix, Cnt + 1, N);
+			display (Matrix, Cnt + 1, N,
+				String ++ to_string("[[~p,", [array:get(Cnt, Matrix)]));
 		Cnt == 1 ->
-			io:format("~p,",   [array:get(Cnt, Matrix)]),
-			display (Matrix, Cnt + 1, N);
+			display(Matrix, Cnt + 1, N,
+				String ++ to_string("~p,", [array:get(Cnt, Matrix)]));
 		Cnt rem N == N - 1 ->
-			io:format("~p],~n", [array:get(Cnt, Matrix)]),
-			display (Matrix, Cnt + 1, N);
+			display (Matrix, Cnt + 1, N,
+				String ++ to_string("~p],\n", [array:get(Cnt, Matrix)]));
 		Cnt rem N == 0 ->
-			io:format(" [~p,",  [array:get(Cnt, Matrix)]),
-			display (Matrix, Cnt + 1, N);
+			display (Matrix, Cnt + 1, N,
+				String ++ to_string(" [~p,",  [array:get(Cnt, Matrix)]));
 		true ->
-			io:format("~p,",   [array:get(Cnt, Matrix)]),
-			display (Matrix, Cnt + 1, N)
+			display (Matrix, Cnt + 1, N,
+				String ++ to_string("~p,",   [array:get(Cnt, Matrix)]))
 	end.
 
 
@@ -159,5 +204,11 @@ display (Matrix, Cnt, N) ->
 
 display(Matrix) ->
 	N = array:size(Matrix),
-	display (Matrix, 0, round(math:sqrt(N))).
+	display (Matrix, 0, round(math:sqrt(N)), "").
+
+
+
+
+nonformated_display (Matrix) ->
+	io:format("~p~n", [Matrix]).
 
