@@ -5,13 +5,11 @@
 		  mset/4,
 		  map/6,
 		  map/2,
-		  map_line/3,
-		  map_column/3,
+		  zip/3,
+		  cmp/5,
+		  cmp/7,
 		  zeros/1,
 		  add_one/3,
-		  add_one_to_line/2,
-		  add_one_to_column/2,
-		  check_desynchronisation/4,
 		  display/1,
 		  nonformated_display/1
 		]).
@@ -79,6 +77,41 @@ map (Fun, Min_I, Max_I, Min_J, Max_J, I, J, N, Matrix) ->
 
 
 
+zip (Fun, Min_I, Max_I, Min_J, Max_J, I, J, N, Matrix1, Matrix2) ->
+	Test_max = I =< Max_I,
+	Test_min = I >= Min_I,
+
+	if I > Max_I ->
+		Matrix1;
+
+	I == N ->
+		Matrix1;
+
+	Test_min and Test_max ->
+
+		if J < Min_J ->
+			zip (Fun, Min_I, Max_I, Min_J, Max_J, I, J + 1,
+				 N, Matrix1, Matrix2);
+		J > Max_J ->
+			zip (Fun, Min_I, Max_I, Min_J, Max_J, I + 1, 0,
+				 N, Matrix1, Matrix2);
+		J == N ->
+			zip (Fun, Min_I, Max_I, Min_J, Max_J, I + 1, 0,
+				 N, Matrix1, Matrix2);
+		true ->
+			Value1 = mget(I, J, Matrix1),
+			Value2 = mget(I, J, Matrix2),
+			zip (Fun, Min_I, Max_I, Min_J, Max_J, I, J + 1,
+				 N, mset(I, J, Fun(Value1, Value2), Matrix1), Matrix2)
+		end;
+
+	true ->
+		zip (Fun, Min_I, Max_I, Min_J, Max_J, I + 1, J, N, Matrix1, Matrix2)
+	end.
+
+
+
+
 map (Fun, Min_I, Max_I, Min_J, Max_J, Matrix) ->
 	N = round(math:sqrt(array:size(Matrix))),
 	map (Fun, Min_I, Max_I, Min_J, Max_J, 0, 0, N, Matrix).
@@ -93,16 +126,32 @@ map (Fun, Matrix) ->
 
 
 
-map_line (Fun, Line, Matrix) ->
-	N = round(math:sqrt(array:size(Matrix))),
-	map (Fun, Line, Line, 0, N, Matrix).
+% Applies the function Fun(X,Y) to each corresponding
+% element in both matrixes and creates a new matrix from
+% the output.
+% Works similarly to zip() in python; but the output of the
+% function applied to each zipped couple is stored and returned
+zip (Fun, Matrix1, Matrix2) ->
+	N = round(math:sqrt(array:size(Matrix1))),
+	zip (Fun, 0, N, 0, N, 0, 0, N, Matrix1, Matrix2).
 
 
 
 
-map_column (Fun, Col, Matrix) ->
-	N = round(math:sqrt(array:size(Matrix))),
-	map (Fun, 0, N, Col, Col, Matrix).
+% Applies a comparaison function between two elements (in [i,j])
+% of two Matrices.
+cmp (Fun, I, J, Matrix1, Matrix2) ->
+	Val1 = mget(I, J, Matrix1),
+	Val2 = mget(I, J, Matrix2),
+	Fun (Val1, Val2).
+
+
+
+
+cmp (Fun, I1, J1, I2, J2, Matrix1, Matrix2) ->
+	Val1 = mget(I1, J1, Matrix1),
+	Val2 = mget(I2, J2, Matrix2),
+	Fun (Val1, Val2).
 
 
 
@@ -126,43 +175,6 @@ add_one (X) -> X + 1.
 add_one (I, J, Matrix) ->
 	map (fun add_one/1, I, I, J, J, Matrix).
 
-
-
-add_one_to_line (Line, Matrix) ->
-	map_line (fun add_one/1, Line, Matrix).
-
-
-
-
-add_one_to_column (Col, Matrix) ->
-	map_column (fun add_one/1, Col, Matrix).
-
-
-
-
-check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM) ->
-	N = round(math:sqrt(array:size(MatrixEM))),
-	check_desynchronisation (0, Excluded_I, Excluded_J, MatrixEM, MatrixHM, N).
-
-
-
-
-check_desynchronisation (N, _, _, _, _, N) ->
-	true;
-check_desynchronisation (K, I, J, MatrixEM, MatrixHM, N) ->
-	Test1 = K /= I,
-	Test2 = K /= J,
-	if Test1 and Test2 ->
-		EMki = mget(K, I, MatrixEM),
-		HMkj = mget(K, J, MatrixHM),
-		if EMki =< HMkj ->
-			check_desynchronisation (K + 1, I, J, MatrixEM, MatrixHM, N);
-		true ->
-			false
-		end;
-	true ->
-		check_desynchronisation (K + 1, I, J, MatrixEM, MatrixHM, N)
-	end.
 
 
 
