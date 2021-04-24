@@ -15,6 +15,15 @@
 		  display/1
 		]).
 
+-define (L, "has a local event").
+-define (S, "sends a message to").
+-define (R, "received a message from").
+-define (D, "DESYNCHRONIZED").
+-define (LSO, "Local Stamp of").
+-define (RSO, "Received Stamp of").
+-define (USO, "Updated Stamp of").
+-define (DELIMITER, "========================================================").
+
 
 
 
@@ -49,9 +58,13 @@ send_event (Id, Sender_Id, Stamp) ->
 
 check_stamp (Id, Sender_Id, Sender_Stamp, Stamp) ->
 	% --- Test n°1 ---
-	A = mget(Id, Sender_Id, Sender_Stamp),
-	B = mget(Id, Sender_Id, Stamp) + 1,
-	if A =:= B ->
+	% Message envoyé de SJ vers SI; on s'assure que SI a reçu tous les msgs
+	% émis antérieurement. EM [j,i] = HM[j,i] + 1.
+	% Ici, j corréspond à l'identifiant du Sender => Sender_Id
+	% Ici i corréspond à l'identifiant du receveur => Id
+	A = mget(Sender_Id, Id, Sender_Stamp),
+	B = mget(Sender_Id, Id, Stamp) + 1,
+	if A /= B ->
 		false;
 	true ->
 		Val = matrix:check_desynchronisation (Id, Sender_Id, Sender_Stamp, Stamp),
@@ -79,45 +92,79 @@ stamp_update (Stamp, Recieved_Stamp, N, Cnt) ->
 
 
 
+process_fun_send (Id, Stamp, Destination_Id, Destination_Pid) ->
+	% --- Sending a message --- %
+	
+	if Id == Destination_Id ->
+		New_Stamp = local_event (Id, Stamp),
+
+		% DISPLAY ------------------------------------------------------------
+		io:format ("~p ~s; stamped:~n~s~s~n",
+    		[Id, ?L, matrix:display(New_Stamp), ?DELIMITER]),
+		% --------------------------------------------------------------------
+
+		New_Stamp;
+	
+	true ->
+		New_Stamp = send_event (Id, Destination_Id, Stamp),
+
+		% DISPLAY ------------------------------------------------------------
+		io:format ("~p ~s ~p; stamped:~n~s~s~n",
+			[Id, ?S, Destination_Id, matrix:display(New_Stamp), ?DELIMITER]),
+		% --------------------------------------------------------------------
+
+		Destination_Pid ! {msg, Id, New_Stamp},
+		New_Stamp
+	end.
+
+
+
+
+process_fun_msg (Id, Stamp,Sender_Id, Sender_Stamp) ->
+	Is_stamp_valid = check_stamp (Id, Sender_Id, Sender_Stamp, Stamp),
+	
+	% --- Receiving a message => Checking for desynchronisation ---
+	if Is_stamp_valid == false ->
+		% Case of desynchronisation
+
+		% DISPLAY ------------------------------------------------------------
+		io:format("~p ~s ~p ~s; ~s ~p: ~n~s~n ~s ~p:~n~s~s~n",
+			[Id, ?R, Sender_Id, ?D, ?LSO, Id, matrix:display(Stamp), ?RSO,
+			Sender_Id, matrix:display(Sender_Stamp), ?DELIMITER]),
+		% --------------------------------------------------------------------
+
+		Stamp;
+
+	true ->
+		New_Stamp1 = matrix:add_one (Id, Id, Stamp),
+		New_Stamp2 = matrix:add_one (Sender_Id, Id, New_Stamp1),
+		New_Stamp3 = stamp_update (New_Stamp2, Sender_Stamp, array:size(Stamp), 0),
+
+		% DISPLAY ------------------------------------------------------------
+		io:format("~p ~s ~p; ~s ~p: ~n~s~n ~s ~p:~n~s~n ~s ~p: ~n~s~s~n",
+			[Id, ?R, Sender_Id, ?LSO, Id, matrix:display(Stamp), ?RSO,
+			Sender_Id, matrix:display(Sender_Stamp), ?USO, Id,
+			matrix:display(New_Stamp3), ?DELIMITER]),
+		% --------------------------------------------------------------------
+
+		New_Stamp3
+	end.
+
+
+
+
 process_fun (Id, Stamp) ->
 	receive
+
 		{send, Destination_Id, Destination_Pid} ->
-			
-			% --- Sending a message --- %
-			if Id == Destination_Id ->
-				New_Stamp = local_event (Id, Stamp),
-				io:format ("~p has a local event; stamped:~n~s~n ############################# ~n",
-                	[Id, matrix:display(New_Stamp)]),
-				process_fun (Id, New_Stamp);
-			true ->
-				New_Stamp = send_event (Id, Destination_Id, Stamp),
-				io:format ("~p sends a message to ~p; stamped:~n~s~n ##################################### ~n",
-					[Id, Destination_Id, matrix:display(New_Stamp)]),
-				Destination_Pid ! {msg, Id, New_Stamp},
-				process_fun (Id, New_Stamp)
-			end;
+			process_fun (Id, process_fun_send (Id, Stamp, Destination_Id,
+				Destination_Pid));
 
 		{msg, Sender_Id, Sender_Stamp} ->
-			Is_stamp_valid = check_stamp (Id, Sender_Id, Sender_Stamp, Stamp),
-			% --- Receiving a message => Checking for desynchronisation ---
-			if Is_stamp_valid == false ->
-				% Case of desynchronisation
-				io:format("~p received a message from ~p [desynchronised !!]; local stamp of ~p: ~n~s~n received stamp of ~p:~n~s~n #################################### ~n",
-					[Id, Sender_Id, Id, matrix:display(Stamp), Sender_Id, matrix:display(Sender_Stamp)]),
-				process_fun (Id, Stamp);
+			process_fun (Id, process_fun_msg (Id, Stamp, Sender_Id,
+				Sender_Stamp))
 
-			true ->
-				New_Stamp1 = matrix:add_one (Id, Id, Stamp),
-				New_Stamp2 = matrix:add_one (Sender_Id, Id, New_Stamp1),
-				New_Stamp3 = stamp_update (New_Stamp2, Sender_Stamp,
-					array:size(Stamp), 0),
-				io:format("~p received a message from ~p; local stamp of ~p: ~n~s~n received stamp of ~p:~n~s~n updated stamp of ~p: ~n~s~n ######################################## ~n",
-					[Id, Sender_Id, Id, matrix:display(Stamp), Sender_Id,
-					matrix:display(Sender_Stamp), Id,
-					matrix:display(New_Stamp3)]),
-				process_fun (Id, New_Stamp3)
-			end
-    end.
+	end.
 
 
 
@@ -136,8 +183,6 @@ start_N_processes (_, 0, Messenger_List) ->
 start_N_processes (N, Cnt, Messenger_List) ->
 	Messenger_Id  = N - Cnt,
 	Stamp = matrix:zeros(matrix:new(N)),
-	
-	%matrix:display(matrix:add_one_to_column(2, Stamp)).
 	
 	% process_fun takes a tuple {Process_name, Stamp }
 	Messenger_Pid = spawn (messenger, process_fun, [Messenger_Id, Stamp]),

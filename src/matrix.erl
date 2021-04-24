@@ -150,8 +150,8 @@ check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM) ->
 check_desynchronisation (N, _, _, _, _, N) ->
 	true;
 check_desynchronisation (K, I, J, MatrixEM, MatrixHM, N) ->
-	Test1 = K =:= I,
-	Test2 = K =:= J,
+	Test1 = K /= I,
+	Test2 = K /= J,
 	if Test1 and Test2 ->
 		EMki = mget(K, I, MatrixEM),
 		HMkj = mget(K, J, MatrixHM),
