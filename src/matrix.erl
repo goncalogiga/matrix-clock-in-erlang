@@ -142,33 +142,27 @@ add_one_to_column (Col, Matrix) ->
 
 check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM) ->
 	N = round(math:sqrt(array:size(MatrixEM))),
-	check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM, N, 0).
+	check_desynchronisation (0, Excluded_I, Excluded_J, MatrixEM, MatrixHM, N).
 
 
 
 
-check_desynchronisation (_, _, _, _, N, N) ->
+check_desynchronisation (N, _, _, _, _, N) ->
 	true;
-check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM, N, Cnt) ->
-	I = round(Cnt/N),
-	J = Cnt rem N,
-	Test1 = Excluded_I == I,
-	Test2 = Excluded_J == J,
-
-	if Test1 or Test2 ->
-		check_desynchronisation (Excluded_I, Excluded_J, MatrixEM, MatrixHM, N,
-			Cnt + 1);
-	true ->
-		Val1 = mget(Excluded_I, I,MatrixEM),
-		Val2 = mget(Excluded_J, J,MatrixHM),
-		if Val1 =< Val2 ->
-			check_desynchronisation (Excluded_I, Excluded_J, MatrixEM,
-				MatrixHM, N, Cnt + 1);
+check_desynchronisation (K, I, J, MatrixEM, MatrixHM, N) ->
+	Test1 = K =:= I,
+	Test2 = K =:= J,
+	if Test1 and Test2 ->
+		EMki = mget(K, I, MatrixEM),
+		HMkj = mget(K, J, MatrixHM),
+		if EMki =< HMkj ->
+			check_desynchronisation (K + 1, I, J, MatrixEM, MatrixHM, N);
 		true ->
 			false
-		end
+		end;
+	true ->
+		check_desynchronisation (K + 1, I, J, MatrixEM, MatrixHM, N)
 	end.
-
 
 
 
