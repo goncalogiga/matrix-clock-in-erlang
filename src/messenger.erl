@@ -111,6 +111,7 @@ process_fun (Id, Stamp) ->
 			process_fun (Id, process_fun_send (Id, Stamp, Destination_Id,
 				Destination_Pid));
 
+	map (fun add_one/1, I, I, J, J, Matrix).
 		{msg, Sender_Id, Sender_Stamp} ->
 			process_fun (Id, process_fun_msg (Id, Stamp, Sender_Id,
 				Sender_Stamp))
