@@ -42,7 +42,7 @@ check_stamp_fun (A, B) -> A == B + 1.
 
 
 check_stamp (Id, Sender_Id, Sender_Stamp, Stamp) ->
-	Test1 = matrix:cmp(fun check_stamp_fun/2, Sender_Id, Id, Sender_Stamp, 
+	Test1 = matrix:cmp(fun check_stamp_fun/2, Sender_Id, Id, Sender_Stamp,
 		Stamp),
 
 	Test2 = check_stamp_test_2 (Id, Sender_Id, Sender_Stamp, Stamp),

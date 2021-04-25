@@ -1,6 +1,7 @@
 -module(messenger).
 
--export([start_N_processes/1, start_N_processes/3, process_fun/3, send/3]).
+-export([start_N_processes/1, start_N_processes/3, start_custom_process/3,
+		 process_fun/3, send/3, send/5]).
 
 -define (L, "has a local event").
 -define (S, "sends a message to").
@@ -15,6 +16,12 @@
 
 
 send (Sender_Id, Destination_Id, Messenger_List) ->
+	send (Sender_Id, Destination_Id, 0, 0, Messenger_List).
+
+
+
+
+send (Sender_Id, Destination_Id, Send_Delay, Receive_Delay, Messenger_List) ->
 	case lists:keyfind(Sender_Id, 1, Messenger_List) of
 		false ->
 			error ("In send/3: sender not found.");
@@ -24,7 +31,13 @@ send (Sender_Id, Destination_Id, Messenger_List) ->
 				false ->
 					error ("In send/3: destination not found");
 				{_, Destination_Pid} ->
-					Sender_Pid ! {send, Destination_Id, Destination_Pid}
+					if Send_Delay == 0 ->
+						Sender_Pid ! {send, Destination_Id, Destination_Pid,
+							Receive_Delay};
+					true ->
+						erlang:send_after (Send_Delay, Sender_Pid,
+							{send, Destination_Id, Destination_Pid, Receive_Delay})
+					end
 			end
 	end.
 
@@ -43,7 +56,7 @@ send_event (Id, Sender_Id, Stamp) ->
 
 
 
-process_fun_send (Id, Stamp, Destination_Id, Destination_Pid) ->
+process_fun_send (Id, Stamp, Destination_Id, Destination_Pid, Delay) ->
 	% --- Sending a message --- %
 	
 	if Id == Destination_Id ->
@@ -60,15 +73,19 @@ process_fun_send (Id, Stamp, Destination_Id, Destination_Pid) ->
 		New_Stamp = send_event (Id, Destination_Id, Stamp),
 
 		% DISPLAY ------------------------------------------------------------
-		io:format ("~p ~s ~p; stamped:~n~s~s~n",
-			[Id, ?S, Destination_Id, matrix:display(New_Stamp), ?DELIMITER]),
+		io:format ("~p ~s ~p; ~s ~p: ~n~s~n sent updated stamp: ~n~s~s~n",
+			[Id, ?S, Destination_Id, ?LSO, Id, matrix:display(Stamp),
+				matrix:display(New_Stamp), ?DELIMITER]),
 		% --------------------------------------------------------------------
 
-		% [Note] For a run without non-causal messages uncomment the following line
-		% and comment the erlang:send_after one.
-		% Destination_Pid ! {msg, Id, New_Stamp},
-		erlang:send_after (rand:uniform(1000), Destination_Pid, {msg, Id, New_Stamp}),
-		New_Stamp
+		if Delay == 0 ->
+			Destination_Pid ! {msg, Id, New_Stamp},
+			New_Stamp;
+		true ->
+		   erlang:send_after (rand:uniform(Delay), Destination_Pid,
+				{msg, Id, New_Stamp}),
+			New_Stamp
+		end
 	end.
 
 
@@ -135,7 +152,7 @@ receive_delayed_msgs (Id, Stamp, FIFO) ->
 receive_delayed_msgs (Id, Stamp, FIFO, DESYNC_FIFO) ->
 	Test = queue:is_empty(FIFO),
 	if Test == true ->
-		{Stamp, queue:join(FIFO, DESYNC_FIFO)};
+		{Stamp, DESYNC_FIFO};
 	true ->
 		{{_, {Sender_Id, Sender_Stamp}}, New_FIFO} = queue:out(FIFO),
 		case process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, 1) of
@@ -153,19 +170,22 @@ receive_delayed_msgs (Id, Stamp, FIFO, DESYNC_FIFO) ->
 process_fun (Id, Stamp, FIFO) ->
 	receive
 
-		{send, Destination_Id, Destination_Pid} ->
-			process_fun (Id, process_fun_send (Id, Stamp, Destination_Id,
-				Destination_Pid), FIFO);
+		{send, Destination_Id, Destination_Pid, Delay} ->
+			process_fun (Id,
+				process_fun_send (Id, Stamp, Destination_Id,
+					Destination_Pid, Delay), FIFO);
 
 		{msg, Sender_Id, Sender_Stamp} ->
-			{Delayed_Stamp, New_FIFO} = receive_delayed_msgs (Id, Stamp, FIFO),
-			case process_fun_msg (Id, Delayed_Stamp, Sender_Id, Sender_Stamp) of
+			case process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp) of
+
 				{_, desynchronized} ->
-					process_fun (Id, Delayed_Stamp,
-						queue:in({Sender_Id, Sender_Stamp}, New_FIFO));
+					process_fun (Id, Stamp, queue:in({Sender_Id, Sender_Stamp},
+						FIFO));
 
 				{New_Stamp, ok} ->
-					process_fun (Id, New_Stamp, New_FIFO)
+					{New_Stamp2, New_FIFO} = receive_delayed_msgs (Id, New_Stamp,
+						FIFO),
+					process_fun (Id, New_Stamp2, New_FIFO)
 			end
 	end.
 
@@ -181,6 +201,7 @@ start_N_processes (N) ->
 
 
 
+
 start_N_processes (_, 0, Messenger_List) ->
 	Messenger_List;
 start_N_processes (N, Cnt, Messenger_List) ->
@@ -192,5 +213,16 @@ start_N_processes (N, Cnt, Messenger_List) ->
 		queue:new()]),
 
 	% A global list Messenger_list keeps all the Messenger ids
-	start_N_processes (N, Cnt - 1, [{Messenger_Id, Messenger_Pid} | Messenger_List]).
+	start_N_processes (N, Cnt - 1, 
+		[{Messenger_Id, Messenger_Pid} | Messenger_List]).
 
+
+
+
+start_custom_process (Messenger_Id, Matrix_in_List, Messenger_List) ->
+	Stamp = matrix:init(Matrix_in_List),
+
+	Messenger_Pid = spawn (messenger, process_fun, [Messenger_Id, Stamp,
+		queue:new()]),
+
+	[ {Messenger_Id, Messenger_Pid} | Messenger_List ].

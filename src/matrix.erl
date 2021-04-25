@@ -1,6 +1,7 @@
 -module (matrix).
 
 -export([ new/1,
+		  init/1,
 		  mget/3,
 		  mset/4,
 		  map/2,
@@ -22,6 +23,48 @@ new (N) ->
 	true ->
 		array:new(N*N)
 	end.
+
+
+
+
+list_len (List) ->
+	list_len(List, 0).
+list_len ([], Count) ->
+	Count;
+list_len ([_ | T], Count) ->
+	list_len (T, Count + 1).
+
+
+
+
+matrix_len (Matrix) ->
+	matrix_len (Matrix, 0).
+matrix_len ([], Count) ->
+	Count;
+matrix_len ([H | T], Count) ->
+	matrix_len (T, Count + list_len (H)).
+
+
+
+
+list_to_line (List, I, N, Matrix) ->
+	list_to_line (List, I, N, Matrix, 0).
+list_to_line ([], _, N, Matrix, N) ->
+	Matrix;
+list_to_line ([List_H | List_T], I, N, Matrix, J) ->
+	list_to_line (List_T, I, N, array:set(N*I + J, List_H, Matrix), J + 1).
+
+
+
+
+init (Matrix_in_List) ->
+	N = round (math:sqrt(matrix_len (Matrix_in_List))),
+	init (N, Matrix_in_List, 0, matrix:new(N)).
+init (N, _, N, Matrix) ->
+	Matrix;
+init (N, [H | T], I, Matrix) ->
+	init (N, T, I + 1, list_to_line (H, I, N, Matrix)).
+
 
 
 
