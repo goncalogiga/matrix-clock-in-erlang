@@ -3,8 +3,7 @@
 ## Compilation & Utilisation
 
 Pour compiler les quatres modules de ce projet il faut exécuter les commandes
-suivantes depuis le répertoire courrant (sauf la première, qui ne sert qu'à montrer 
-la version de erlang avec laquelle j'ai compilé mon code):
+suivantes depuis le répertoire courrant 
 
 ```
 $ cd src
@@ -12,19 +11,17 @@ $ erl
 Erlang/OTP 22 [erts-10.6.4] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-threads:1]
 
 Eshell V10.6.4  (abort with ^G)
-1> erlang:system_info(otp_release).
-"22"
-2> c(matrix).
+1> c(matrix).
 {ok,matrix}
-3> c(check_stamp).
+2> c(check_stamp).
 {ok,check_stamp}
-4> c(messenger).
+3> c(messenger).
 {ok,messenger}
-5> c(test).
+4> c(test).
 {ok,test}
 ```
 
-Ici le code a été compilé sur Ubuntu 20.
+Ici le code a été compilé sur Ubuntu 20 avec la version d'Erlang affichée ci-dessus (version 22).
 
 Pour utiliser le programme, deux options sont possibles:
 
@@ -32,7 +29,7 @@ Pour lancer N processus avec M communications aléatoires entre eux il faut
 executer la fonction ```main``` de ```test.erl``` avec les arguments suivants:
 
 ```
-6> test:main(4, 100).
+5> test:main(4, 100).
 ```
 
 Où 4 est le nombre de porcessus N et 100 le nombre M de communications.
@@ -42,7 +39,7 @@ Pour lancer le scénario déjà écrit, qui corréspond au scénario dans l'imag
 2 du cours) il suffit de faire
 
 ```
-7> test:main().
+6> test:main().
 ```
 
 Enfin, il est également possible de paramétrer les bornes suppérieurs des
@@ -51,7 +48,7 @@ des messages qui doivent être reportés par notre mécanisme d'horloge
 matricielle)
 
 ```
-8> test:main (4, 100, 250, 500)
+7> test:main (4, 100, 250, 500)
 ```
 
 Pour le détail de ces deux derniers paramètres, il faut lire la déscription des
