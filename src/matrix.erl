@@ -7,7 +7,6 @@
 		  map/2,
 		  zip/3,
 		  cmp/5,
-		  cmp/7,
 		  zeros/1,
 		  add_one/3,
 		  display/1,
@@ -125,14 +124,6 @@ zip (Fun, Matrix1, Matrix2) ->
 cmp (Fun, I, J, Matrix1, Matrix2) ->
 	Val1 = mget(I, J, Matrix1),
 	Val2 = mget(I, J, Matrix2),
-	Fun (Val1, Val2).
-
-
-
-
-cmp (Fun, I1, J1, I2, J2, Matrix1, Matrix2) ->
-	Val1 = mget(I1, J1, Matrix1),
-	Val2 = mget(I2, J2, Matrix2),
 	Fun (Val1, Val2).
 
 

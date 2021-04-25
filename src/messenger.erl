@@ -92,17 +92,34 @@ process_fun_send (Id, Stamp, Destination_Id, Destination_Pid, Delay) ->
 
 
 process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, Is_Delayed) ->
-	Is_stamp_valid = check_stamp:check_stamp (Id, Sender_Id, Sender_Stamp, Stamp),
+	{Test1, Test2, K, I} = check_stamp:check_stamp (Id, Sender_Id, Sender_Stamp, Stamp),
 	
 	% --- Receiving a message => Checking for desynchronisation ---
-	if Is_stamp_valid == false ->
-		% Case of desynchronisation
+	if Test1 == false ->
 
 		% DISPLAY ------------------------------------------------------------
 		if Is_Delayed == 0 ->
-			io:format("~p ~s ~p ~s; ~s ~p: ~n~s~n ~s ~p:~n~s~s~n",
-				[Id, ?R, Sender_Id, ?D, ?LSO, Id, matrix:display(Stamp), ?RSO,
+			io:format("~p ~s ~p [(EM[~p,~p] != HM[~p,~p] + 1) => ~s]~n ~s ~p: ~n~s~n ~s ~p:~n~s~s~n",
+				[Id, ?R, Sender_Id, Sender_Id, Id, Sender_Id, id, ?D, ?LSO, Id,
+				matrix:display(Stamp), ?RSO, Sender_Id,
+				matrix:display(Sender_Stamp), ?DELIMITER]),
+			{Stamp, desynchronized};
+		true ->
+			io:format("~p tested bufferized stamp from ~p: ~s ~p ~n~s~n ~s ~p ~n~s~n (still non-causal.) ~n~s~n",
+				[Id, Sender_Id, ?LSO, Id, matrix:display(Stamp), ?RSO,
 				Sender_Id, matrix:display(Sender_Stamp), ?DELIMITER]),
+			{Stamp, desynchronized}
+		% --------------------------------------------------------------------
+		end;
+
+	Test2 == false ->
+
+		% DISPLAY ------------------------------------------------------------
+		if Is_Delayed == 0 ->
+			io:format("~p ~s ~p [(EM[~p,~p] > HM[~p,~p]) => ~s]~n ~s ~p: ~n~s~n ~s ~p:~n~s~s~n",
+				[Id, ?R, Sender_Id, K, I, K, I, ?D, ?LSO, Id,
+				matrix:display(Stamp), ?RSO, Sender_Id,
+				matrix:display(Sender_Stamp), ?DELIMITER]),
 			{Stamp, desynchronized};
 		true ->
 			io:format("~p tested bufferized stamp from ~p: ~s ~p ~n~s~n ~s ~p ~n~s~n (still non-causal.) ~n~s~n",
