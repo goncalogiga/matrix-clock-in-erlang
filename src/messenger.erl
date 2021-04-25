@@ -74,7 +74,7 @@ process_fun_send (Id, Stamp, Destination_Id, Destination_Pid) ->
 
 
 
-process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, Is_Dump) ->
+process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, Is_Delayed) ->
 	Is_stamp_valid = check_stamp:check_stamp (Id, Sender_Id, Sender_Stamp, Stamp),
 	
 	% --- Receiving a message => Checking for desynchronisation ---
@@ -82,12 +82,15 @@ process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, Is_Dump) ->
 		% Case of desynchronisation
 
 		% DISPLAY ------------------------------------------------------------
-		if Is_Dump == 0 ->
+		if Is_Delayed == 0 ->
 			io:format("~p ~s ~p ~s; ~s ~p: ~n~s~n ~s ~p:~n~s~s~n",
 				[Id, ?R, Sender_Id, ?D, ?LSO, Id, matrix:display(Stamp), ?RSO,
 				Sender_Id, matrix:display(Sender_Stamp), ?DELIMITER]),
 			{Stamp, desynchronized};
 		true ->
+			io:format("~p tested bufferized stamp from ~p: ~s ~p ~n~s~n ~s ~p ~n~s~n (still non-causal.) ~n~s~n",
+				[Id, Sender_Id, ?LSO, Id, matrix:display(Stamp), ?RSO,
+				Sender_Id, matrix:display(Sender_Stamp), ?DELIMITER]),
 			{Stamp, desynchronized}
 		% --------------------------------------------------------------------
 		end;
@@ -98,14 +101,14 @@ process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, Is_Dump) ->
 		New_Stamp3 = matrix:zip (fun max/2, New_Stamp2, Sender_Stamp),
 
 		% DISPLAY ------------------------------------------------------------
-		if Is_Dump == 0 ->
+		if Is_Delayed == 0 ->
 			io:format("~p ~s ~p; ~s ~p: ~n~s~n ~s ~p:~n~s~n ~s ~p: ~n~s~s~n",
 				[Id, ?R, Sender_Id, ?LSO, Id, matrix:display(Stamp), ?RSO,
 				Sender_Id, matrix:display(Sender_Stamp), ?USO, Id,
 				matrix:display(New_Stamp3), ?DELIMITER]),
 				{New_Stamp3, ok};
 		true ->
-			io:format("(DELAYED) ~p ~s ~p; ~s ~p: ~n~s~n ~s ~p:~n~s~n ~s ~p: ~n~s~s~n",
+			io:format("(SENT WITH DELAY) ~p ~s ~p; ~s ~p: ~n~s~n ~s ~p:~n~s~n ~s ~p: ~n~s~s~n",
 				[Id, ?R, Sender_Id, ?LSO, Id, matrix:display(Stamp), ?RSO,
 				Sender_Id, matrix:display(Sender_Stamp), ?USO, Id,
 				matrix:display(New_Stamp3), ?DELIMITER]),
@@ -123,42 +126,46 @@ process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp) ->
 
 
 
-dump_buffer (_, Stamp, [], Buffer) ->
-	{Stamp, Buffer};
-dump_buffer (Id, Stamp, [{Sender_Id, Sender_Stamp} | Buf_T], Buf_Heads) ->
-	case process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, 1) of
-		{_, desynchronized} ->
-			dump_buffer (Id, Stamp, Buf_T,
-				[ {Sender_Id, Sender_Stamp} | Buf_Heads ]);
-		{New_Stamp, ok} ->
-			{New_Stamp, Buf_Heads ++ Buf_T}
+receive_delayed_msgs (Id, Stamp, FIFO) ->
+	receive_delayed_msgs (Id, Stamp, FIFO, queue:new()).
+
+
+
+
+receive_delayed_msgs (Id, Stamp, FIFO, DESYNC_FIFO) ->
+	Test = queue:is_empty(FIFO),
+	if Test == true ->
+		{Stamp, queue:join(FIFO, DESYNC_FIFO)};
+	true ->
+		{{_, {Sender_Id, Sender_Stamp}}, New_FIFO} = queue:out(FIFO),
+		case process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, 1) of
+			{_, desynchronized} ->
+				receive_delayed_msgs (Id, Stamp, New_FIFO,
+					queue:in({Sender_Id, Sender_Stamp}, DESYNC_FIFO));
+			{New_Stamp, ok} ->
+				receive_delayed_msgs (Id, New_Stamp, New_FIFO)
+		end
 	end.
 
 
 
 
-dump_buffer (Id, Stamp, Buffer) ->
-	dump_buffer (Id, Stamp, Buffer, []).
-
-
-
-
-process_fun (Id, Stamp, Buffer) ->
+process_fun (Id, Stamp, FIFO) ->
 	receive
 
 		{send, Destination_Id, Destination_Pid} ->
 			process_fun (Id, process_fun_send (Id, Stamp, Destination_Id,
-				Destination_Pid), Buffer);
+				Destination_Pid), FIFO);
 
 		{msg, Sender_Id, Sender_Stamp} ->
-			{Dumped_Stamp, Buf_Remains} = dump_buffer (Id, Stamp, Buffer),
-			case process_fun_msg (Id, Dumped_Stamp, Sender_Id, Sender_Stamp) of
+			{Delayed_Stamp, New_FIFO} = receive_delayed_msgs (Id, Stamp, FIFO),
+			case process_fun_msg (Id, Delayed_Stamp, Sender_Id, Sender_Stamp) of
 				{_, desynchronized} ->
-					process_fun (Id, Dumped_Stamp,
-						[{Sender_Id, Sender_Stamp} | Buf_Remains]);
+					process_fun (Id, Delayed_Stamp,
+						queue:in({Sender_Id, Sender_Stamp}, New_FIFO));
 
 				{New_Stamp, ok} ->
-					process_fun (Id, New_Stamp, Buf_Remains)
+					process_fun (Id, New_Stamp, New_FIFO)
 			end
 	end.
 
@@ -181,7 +188,8 @@ start_N_processes (N, Cnt, Messenger_List) ->
 	Stamp = matrix:zeros(matrix:new(N)),
 	
 	% process_fun takes a tuple {Process_name, Stamp }
-	Messenger_Pid = spawn (messenger, process_fun, [Messenger_Id, Stamp, []]),
+	Messenger_Pid = spawn (messenger, process_fun, [Messenger_Id, Stamp,
+		queue:new()]),
 
 	% A global list Messenger_list keeps all the Messenger ids
 	start_N_processes (N, Cnt - 1, [{Messenger_Id, Messenger_Pid} | Messenger_List]).
