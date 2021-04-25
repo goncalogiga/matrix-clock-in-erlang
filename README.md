@@ -1,3 +1,5 @@
-# MCIE
+# Mini-projet Erlang
 
-## Matrix Clock In Erlang
+## Compilation
+
+## 

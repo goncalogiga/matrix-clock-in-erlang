@@ -9,8 +9,7 @@
 		  cmp/5,
 		  zeros/1,
 		  add_one/3,
-		  display/1,
-		  nonformated_display/1
+		  display/1
 		]).
 
 
@@ -92,7 +91,7 @@ decimal_point(X, DecimalDigits)->
 % given by the user. An example of such a list is given above.
 init (Matrix_in_List) ->
 	Size = matrix_len (Matrix_in_List),
-	Rest = decimal_point (Size),
+	Rest = decimal_point (Size, 1),
 	if Rest /= 0 ->
 		error ("init can only accept square matrices");
 	true ->
@@ -223,7 +222,7 @@ zip (Fun, Matrix1, Matrix2) ->
 cmp (Fun, I, J, Matrix1, Matrix2) ->
 	SecurityTest = array:size(Matrix1) == array:size(Matrix2),
 	if SecurityTest == false ->
-		error ("Comparaison between two Matrices of different dimensions)";
+		error ("Comparaison between two Matrices of different dimensions");
 	true ->
 		Val1 = mget(I, J, Matrix1),
 		Val2 = mget(I, J, Matrix2),

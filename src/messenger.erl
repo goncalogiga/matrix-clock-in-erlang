@@ -196,7 +196,7 @@ process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp, Is_Delayed) ->
 		% DISPLAY ------------------------------------------------------------
 		if Is_Delayed == 0 ->
 			io:format("~p ~s ~p [(EM[~p,~p] != HM[~p,~p] + 1) => ~s]~n ~s ~p: ~n~s~n ~s ~p:~n~s~s~n",
-				[Id, ?R, Sender_Id, Sender_Id, Id, Sender_Id, id, ?D, ?LSO, Id,
+				[Id, ?R, Sender_Id, Sender_Id, Id, Sender_Id, Id, ?D, ?LSO, Id,
 				matrix:display(Stamp), ?RSO, Sender_Id,
 				matrix:display(Sender_Stamp), ?DELIMITER]),
 			{Stamp, desynchronized};
@@ -327,19 +327,21 @@ process_fun (Id, Stamp, FIFO) ->
 	receive
 
 		{send, Destination_Id, Destination_Pid, Delay} ->
-			process_fun (Id,
-				process_fun_send (Id, Stamp, Destination_Id,
-					Destination_Pid, Delay), FIFO);
+			{New_Stamp, New_FIFO} = receive_delayed_msgs (Id, Stamp,
+				FIFO),
+			process_fun (Id, process_fun_send (Id, New_Stamp, Destination_Id,
+				Destination_Pid, Delay), New_FIFO);
 
 		{msg, Sender_Id, Sender_Stamp} ->
 			case process_fun_msg (Id, Stamp, Sender_Id, Sender_Stamp) of
 
 				{_, desynchronized} ->
-					process_fun (Id, Stamp, queue:in({Sender_Id, Sender_Stamp},
-						FIFO));
+					{New_Stamp, New_FIFO} = receive_delayed_msgs (Id, Stamp,
+						FIFO),
+					process_fun (Id, New_Stamp, queue:in({Sender_Id, Sender_Stamp},
+						New_FIFO));
 
 				{New_Stamp, ok} ->
-					% Check if any delayed message is now ready to be sent:
 					{New_Stamp2, New_FIFO} = receive_delayed_msgs (Id, New_Stamp,
 						FIFO),
 					process_fun (Id, New_Stamp2, New_FIFO)
