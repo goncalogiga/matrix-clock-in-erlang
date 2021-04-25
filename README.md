@@ -3,7 +3,8 @@
 ## Compilation & Utilisation
 
 Pour compiler les quatres modules de ce projet il faut exécuter les commandes
-suivantes depuis le répertoire courrant:
+suivantes depuis le répertoire courrant (sauf la première, qui ne sert qu'à montrer 
+la version de erlang avec laquelle j'ai compilé mon code):
 
 ```
 $ cd src
